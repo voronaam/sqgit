@@ -2,12 +2,14 @@ use std::process::Command;
 
 #[macro_use]
 extern crate nom;
-use nom::{space, alphanumeric, IResult};
+use nom::{space, alphanumeric, digit, IResult};
 
 #[derive(PartialEq,Eq,Debug)]
 struct Query<'a> {
     column: &'a str,
-    hash: &'a str
+    hash: &'a str,
+    limit: Option<&'a str>,
+    offset: Option<&'a str>,
 }
 
 fn main() {
@@ -30,7 +32,7 @@ fn main() {
     }
 }
 
-fn rev_list(params: &Vec<&str>) -> (std::process::ExitStatus, String) {
+fn rev_list(params: &Vec<String>) -> (std::process::ExitStatus, String) {
     let mut git = Command::new("git");
     git.arg("rev-list").args(params);
     let output = git.output().unwrap_or_else(|e| {
@@ -53,16 +55,30 @@ fn parse(input: &str) -> Query {
         space ~
         tag!("FROM") ~
         space ~
-        hash: map_res!(alphanumeric, std::str::from_utf8),
-        || {Query{column: column, hash: hash}}
+        chain!(tag!("abcd"), || {1})? ~
+        hash: map_res!(alphanumeric, std::str::from_utf8) ~
+        space? ~
+        limit: alt!(chain!(tag!("LIMIT") ~ space ~ l: map_res!(digit, std::str::from_utf8), || {l}))? ~
+        offset: alt!(chain!(tag!("OFFSET") ~ space ~ l: map_res!(digit, std::str::from_utf8), || {l}))?
+        , || {Query{column: column, hash: hash, limit: limit, offset: offset}}
       )
     );
-    match select_e(input.as_bytes()) {
+    
+    let parsed = select_e(input.as_bytes());
+    println!("{:?}", parsed);
+    match parsed {
         IResult::Done(_, q) => q,
         _ => panic!("Failed to parse query"),
     }
 }
 
-fn build_params<'a>(query: &'a Query) -> Vec<&'a str> {
-     vec!(query.hash)
+fn build_params<'a>(query: &'a Query) -> Vec<String> {
+     let mut res = vec!(query.hash.to_string());
+     if let Some(x) = query.limit {
+         res.push(format!("--max-count={}", x));
+     }
+     if let Some(x) = query.offset {
+         res.push(format!("--skip={}", x));
+     }
+     res
 }
