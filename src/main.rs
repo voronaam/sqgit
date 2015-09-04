@@ -1,5 +1,15 @@
 use std::process::Command;
 
+#[macro_use]
+extern crate nom;
+use nom::{space, alphanumeric};
+
+#[derive(PartialEq,Eq,Debug)]
+struct Query<'a> {
+    column: &'a str,
+    hash: &'a str
+}
+
 fn main() {
     let args: Vec<_> = std::env::args().collect();
     if args.len() < 2 {
@@ -7,6 +17,7 @@ fn main() {
     }
     let query = &args[1];
     println!("Executing query: {}", query);
+    parse(query);
     
     let params = vec!("HEAD");
     let (status, output) = rev_list(&params);
@@ -28,4 +39,20 @@ fn rev_list(params: &Vec<&str>) -> (std::process::ExitStatus, String) {
     
 fn format_output(output: &String) {
     println!("{}", output);
+}
+fn parse(input: &str) {
+    named!(select_e <&[u8], Query>,
+      chain!(
+        tag!("SELECT") ~
+        space ~
+        column: map_res!(alphanumeric, std::str::from_utf8) ~
+        space ~
+        tag!("FROM") ~
+        space ~
+        hash: map_res!(alphanumeric, std::str::from_utf8),
+        || {Query{column: column, hash: hash}}
+      )
+    );
+    let parsed = select_e(input.as_bytes());
+    println!("Parsed: {:?}", parsed);
 }
