@@ -2,7 +2,7 @@ use std::process::Command;
 
 #[macro_use]
 extern crate nom;
-use nom::{space, alphanumeric};
+use nom::{space, alphanumeric, IResult};
 
 #[derive(PartialEq,Eq,Debug)]
 struct Query<'a> {
@@ -15,11 +15,13 @@ fn main() {
     if args.len() < 2 {
         panic!("Please provide a query")
     }
-    let query = &args[1];
-    println!("Executing query: {}", query);
-    parse(query);
-    
-    let params = vec!("HEAD");
+    let string_query = &args[1];
+    println!("Executing query: {}", string_query);
+    let query = parse(string_query);
+
+    println!("Parsed: {:?}", query);
+    let params = build_params(&query);
+
     let (status, output) = rev_list(&params);
     if !status.success() {
         println!("process exited with: {}", status);
@@ -38,9 +40,11 @@ fn rev_list(params: &Vec<&str>) -> (std::process::ExitStatus, String) {
 }
     
 fn format_output(output: &String) {
+    println!("--");
     println!("{}", output);
 }
-fn parse(input: &str) {
+
+fn parse(input: &str) -> Query {
     named!(select_e <&[u8], Query>,
       chain!(
         tag!("SELECT") ~
@@ -53,6 +57,12 @@ fn parse(input: &str) {
         || {Query{column: column, hash: hash}}
       )
     );
-    let parsed = select_e(input.as_bytes());
-    println!("Parsed: {:?}", parsed);
+    match select_e(input.as_bytes()) {
+        IResult::Done(_, q) => q,
+        _ => panic!("Failed to parse query"),
+    }
+}
+
+fn build_params<'a>(query: &'a Query) -> Vec<&'a str> {
+     vec!(query.hash)
 }
