@@ -6,8 +6,8 @@ use nom::{space, alphanumeric, digit, IResult};
 
 #[derive(PartialEq,Eq,Debug)]
 struct Query<'a> {
-    column: &'a str,
-    hash: &'a str,
+    column: String,
+    hash: String,
     limit: Option<&'a str>,
     offset: Option<&'a str>,
 }
@@ -40,7 +40,7 @@ fn rev_list(params: &Vec<String>) -> (std::process::ExitStatus, String) {
     });
     (output.status, String::from_utf8_lossy(&output.stdout).to_string())
 }
-    
+
 fn format_output(output: &String) {
     println!("--");
     println!("{}", output);
@@ -57,22 +57,24 @@ fn parse(input: &str) -> Query {
         space ~
         chain!(tag!("abcd"), || {1})? ~
         hash: map_res!(alphanumeric, std::str::from_utf8) ~
-        space? ~
-        limit: alt!(chain!(tag!("LIMIT") ~ space ~ l: map_res!(digit, std::str::from_utf8), || {l}))? ~
-        offset: alt!(chain!(tag!("OFFSET") ~ space ~ l: map_res!(digit, std::str::from_utf8), || {l}))?
-        , || {Query{column: column, hash: hash, limit: limit, offset: offset}}
+        limit: alt!(chain!(space ~ tag!("LIMIT") ~ space ~ l: map_res!(digit, std::str::from_utf8), || {l}))? ~
+        offset: alt!(chain!(space ~ tag!("OFFSET") ~ space ~ l: map_res!(digit, std::str::from_utf8), || {l}))?
+        , || {Query{
+            column: column.to_string(),
+            hash: hash.to_string(),
+            limit: limit,
+            offset: offset}}
       )
     );
-    
+
     let parsed = select_e(input.as_bytes());
-    println!("{:?}", parsed);
     match parsed {
         IResult::Done(_, q) => q,
-        _ => panic!("Failed to parse query"),
+        _ => panic!("Failed to parse query: {:?}", parsed),
     }
 }
 
-fn build_params<'a>(query: &'a Query) -> Vec<String> {
+fn build_params(query: &Query) -> Vec<String> {
      let mut res = vec!(query.hash.to_string());
      if let Some(x) = query.limit {
          res.push(format!("--max-count={}", x));
