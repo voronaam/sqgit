@@ -47,6 +47,9 @@ fn format_output(output: &String) {
 }
 
 fn parse(input: &str) -> Query {
+    named!(limit_e <&[u8], &str>,  chain!(space ~ tag!("LIMIT")  ~ space ~ l: map_res!(digit, std::str::from_utf8), || {l}));
+    named!(offset_e <&[u8], &str>, chain!(space ~ tag!("OFFSET") ~ space ~ l: map_res!(digit, std::str::from_utf8), || {l}));
+
     named!(select_e <&[u8], Query>,
       chain!(
         tag!("SELECT") ~
@@ -55,10 +58,10 @@ fn parse(input: &str) -> Query {
         space ~
         tag!("FROM") ~
         space ~
-        chain!(tag!("abcd"), || {1})? ~
         hash: map_res!(alphanumeric, std::str::from_utf8) ~
-        limit: chain!(space ~ tag!("LIMIT") ~ space ~ l: map_res!(digit, std::str::from_utf8), || {l})? ~
-        offset: chain!(space ~ tag!("OFFSET") ~ space ~ l: map_res!(digit, std::str::from_utf8), || {l})?
+        limit: opt!(limit_e) ~
+        offset: opt!(offset_e) ~
+        tag!(";")
         , || {Query{
             column: column.to_string(),
             hash: hash.to_string(),
