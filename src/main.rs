@@ -57,8 +57,8 @@ fn parse(input: &str) -> Query {
         space ~
         chain!(tag!("abcd"), || {1})? ~
         hash: map_res!(alphanumeric, std::str::from_utf8) ~
-        limit: alt!(chain!(space ~ tag!("LIMIT") ~ space ~ l: map_res!(digit, std::str::from_utf8), || {l}))? ~
-        offset: alt!(chain!(space ~ tag!("OFFSET") ~ space ~ l: map_res!(digit, std::str::from_utf8), || {l}))?
+        limit: chain!(space ~ tag!("LIMIT") ~ space ~ l: map_res!(digit, std::str::from_utf8), || {l})? ~
+        offset: chain!(space ~ tag!("OFFSET") ~ space ~ l: map_res!(digit, std::str::from_utf8), || {l})?
         , || {Query{
             column: column.to_string(),
             hash: hash.to_string(),
