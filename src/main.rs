@@ -59,9 +59,8 @@ fn parse(input: &str) -> Query {
         tag!("FROM") ~
         space ~
         hash: map_res!(alphanumeric, std::str::from_utf8) ~
-        limit: opt!(limit_e) ~
-        offset: opt!(offset_e) ~
-        tag!(";")
+        limit: opt!(complete!(limit_e)) ~
+        offset: opt!(complete!(offset_e))
         , || {Query{
             column: column.to_string(),
             hash: hash.to_string(),
